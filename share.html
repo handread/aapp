@@ -87,6 +87,13 @@
   .upload-tips { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
   .tip-item { font-size: 11px; color: rgba(255,200,100,.4); letter-spacing: .04em; padding-left: 2px; }
   .hidden { display: none !important; }
+  .locked-screen {
+    text-align: center; padding: 70px 24px 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .locked-icon { font-size: 38px; opacity: .5; }
+  .locked-title { font-size: 17px; color: rgba(255,220,150,.7); letter-spacing: .12em; }
+  .locked-sub { font-size: 13px; color: rgba(255,200,100,.35); letter-spacing: .06em; line-height: 1.9; }
 
   .tabs { display: flex; gap: 0; margin-bottom: 20px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,200,80,.2); }
   .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; color: rgba(255,200,100,.45); font-size: 13px; letter-spacing: .08em; cursor: pointer; font-family: Georgia, serif; transition: all .2s; }
@@ -229,6 +236,36 @@
 // ⚠️ 修改为你的 HuggingFace Space 地址
 const API_URL = "https://benihuang-palm.hf.space/analyze";
 
+// ── 次数限制配置 ──────────────────────────────
+const PALM_LIMIT = 1;   // 掌纹可用次数
+const FP_LIMIT   = 1;   // 指纹可用次数
+const STORAGE_KEY_PALM = 'beni_palm_used';
+const STORAGE_KEY_FP   = 'beni_fp_used';
+
+const LOCKED_HTML = `
+  <div class="locked-screen">
+    <div class="locked-icon">✦</div>
+    <div class="locked-title">本次体验已结束</div>
+    <div class="locked-sub">每位访客仅限解读一次<br>感谢你的到来 ☽</div>
+  </div>`;
+
+function isLocked(key, limit) {
+  return parseInt(localStorage.getItem(key) || '0') >= limit;
+}
+function markUsed(key) {
+  localStorage.setItem(key, parseInt(localStorage.getItem(key) || '0') + 1);
+}
+function lockPanel(uploadId, tabId) {
+  document.getElementById(uploadId).innerHTML = LOCKED_HTML;
+}
+
+// 页面加载时检查锁定状态
+window.addEventListener('DOMContentLoaded', () => {
+  if (isLocked(STORAGE_KEY_PALM, PALM_LIMIT)) lockPanel('section-upload');
+  if (isLocked(STORAGE_KEY_FP,   FP_LIMIT))   lockPanel('fp-section-upload');
+});
+// ─────────────────────────────────────────────
+
 const ICONS = ["♡","❋","✦","◈","☽","✿","◉","❖"];
 const LOADING_MSGS = [
   "正在扫描掌纹 ···",
@@ -282,6 +319,7 @@ async function analyze() {
     }
     const data = await res.json();
     clearInterval(timer);
+    markUsed(STORAGE_KEY_PALM);
     renderResults(data);
   } catch(e) {
     clearInterval(timer);
@@ -366,6 +404,7 @@ async function fpAnalyze() {
     if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || "服务错误 (" + res.status + ")"); }
     const data = await res.json();
     clearInterval(timer);
+    markUsed(STORAGE_KEY_FP);
     fpRenderResults(data);
   } catch(e) {
     clearInterval(timer);
